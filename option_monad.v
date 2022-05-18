@@ -29,7 +29,7 @@ Qed.
  
 Lemma mon_assoc :
   forall (A B C : Type) (a : option A) (f : A -> option B) (g : B -> option C),
-    (a >>= f) >>= g = a >>= (fun x => f x >>= g).
+    (a >>= f) >>= g = a >>= (fun (x:A) => f x >>= g).
 intros.
 induction a; repeat reflexivity.
 Qed.
