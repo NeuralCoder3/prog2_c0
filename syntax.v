@@ -10,7 +10,7 @@ Variant Val :=
     | IntVal (v: nat).
 
 Variant Op := 
-    Add | Mul.
+    Add | Mul | Sub | Ge.
 
     (* Lt Eq *)
 

@@ -101,7 +101,7 @@ Inductive step : Conf -> Conf -> Prop :=
     | IfFalseStep e s1 s2 σ :
         R⟦e⟧σ = Some (0:Val) ->
         ⟨ (If e s1 s2) | σ ⟩ ~> ⟨ s1 | σ ⟩
-    | WhileStep e s σ (n:nat) :
+    | WhileStep e s σ :
         ⟨ (While e s) | σ ⟩ ~> ⟨ If e (Block [s; While e s]) (Block []) | σ ⟩
     | EmptyStep σ :
         ⟨ Block [] | σ ⟩ ~> « σ »
