@@ -92,31 +92,31 @@ Section Exercise6_9.
     unfold abortion, wp, W.
     do 13 try eapply BigStepTrans.
     - apply SubstStep.
-        apply WhileStep.
+      apply WhileStep.
     - apply SubstStep.
-        apply IfTrueStep with (n:=1).
-        2: easy.
-        now vm_compute.
+      apply IfTrueStep with (n:=1).
+      2: easy.
+      now vm_compute.
     - Fail do 2 (apply ExecStep). 
-        (* Not Exec as exec is going to <s,sig> not Terminal *)
-        apply SubstStep. 
-        apply ExecStep.
-        apply AssignStep.
-        + now vm_compute.
-        + now vm_compute.
+      (* Not Exec as exec is going to <s,sig> not Terminal *)
+      apply SubstStep. 
+      apply ExecStep.
+      apply AssignStep.
+      + now vm_compute.
+      + now vm_compute.
 
-        (* same as above *)
+      (* same as above for second while loop iteration *)
     - do 2 apply SubstStep.
       apply WhileStep.
     - do 2 apply SubstStep.
-        apply IfTrueStep with (n:=1).
-        2: easy.
-        now vm_compute.
+      apply IfTrueStep with (n:=1).
+      2: easy.
+      now vm_compute.
     - do 2 apply SubstStep. 
-        apply ExecStep.
-        apply AssignStep.
-        + now vm_compute.
-        + now vm_compute.
+      apply ExecStep.
+      apply AssignStep.
+      + now vm_compute.
+      + now vm_compute.
     
     - do 3 apply SubstStep.
       apply WhileStep.

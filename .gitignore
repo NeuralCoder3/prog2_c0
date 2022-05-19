@@ -1,0 +1,7 @@
+*.vo*
+*.cache
+*.glob
+*.github.io/
+html/
+*.pdf
+*.aux
