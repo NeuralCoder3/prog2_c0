@@ -4,14 +4,15 @@ Require Import Nat.
 Import ListNotations.
 
 Definition VarT := string.
-Definition Addr := nat.
+(* Definition Addr := nat. *)
+Variant Addr := Triangle | Circle | Pentagon | Square.
 Variant Val :=
     | AddrVal (addr: Addr)
     | IntVal (v: nat).
 
 Variant Op := 
-    Add | Mul | Sub | Ge.
-
+    Add | Mul | Sub | Ge | Eq.
+(* define Ge with Lt & Eq & Not *)
     (* Lt Eq *)
 
 Inductive Expr :=

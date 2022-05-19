@@ -30,9 +30,14 @@ Definition LExprEval (l:LExpr) (σ:State) : option Addr :=
     | Var x => ρ x
     end.
 Definition evalOp (op:Op) (v1 v2:Val) : option Val :=
-    None.
-    (* match op,v1,v2 with
-    | Add, Undef, Undef => Undef *)
+    match op, v1,v2 with 
+    | Add, IntVal i1, IntVal i2 => Some (IntVal (i1+i2))
+    | Sub, IntVal i1, IntVal i2 => Some (IntVal (i1-i2))
+    | Mul, IntVal i1, IntVal i2 => Some (IntVal (i1*i2))
+    | Ge , IntVal i1, IntVal i2 => Some (IntVal (if Nat.leb i2 i1 then 1 else 0))
+    | Eq , IntVal i1, IntVal i2 => Some (IntVal (if Nat.eqb i1 i2 then 1 else 0))
+    | _, _, _ => None
+    end.
 Fixpoint ExprEval (e:Expr) (s:State) : option Val :=
     match e with 
     | Const c => ret c
@@ -100,7 +105,7 @@ Inductive step : Conf -> Conf -> Prop :=
         ⟨ (If e s1 s2) | σ ⟩ ~> ⟨ s1 | σ ⟩
     | IfFalseStep e s1 s2 σ :
         R⟦e⟧σ = Some (0:Val) ->
-        ⟨ (If e s1 s2) | σ ⟩ ~> ⟨ s1 | σ ⟩
+        ⟨ (If e s1 s2) | σ ⟩ ~> ⟨ s2 | σ ⟩
     | WhileStep e s σ :
         ⟨ (While e s) | σ ⟩ ~> ⟨ If e (Block [s; While e s]) (Block []) | σ ⟩
     | EmptyStep σ :
@@ -109,7 +114,7 @@ Inductive step : Conf -> Conf -> Prop :=
         ⟨ s1 | σ ⟩ ~> « σ' » ->
         ⟨ Block (s1::sr) | σ ⟩ ~> ⟨ Block sr | σ' ⟩
     | SubstStep s1 s1' sr σ σ' :
-        ⟨ s1 | σ ⟩ ~> ⟨ s1' | σ ⟩ ->
+        ⟨ s1 | σ ⟩ ~> ⟨ s1' | σ' ⟩ ->
         ⟨ Block (s1::sr) | σ ⟩ ~> ⟨ Block (s1'::sr) | σ' ⟩
     | AbortStep σ :
         ⟨ Abort | σ ⟩ ~> ↯

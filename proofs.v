@@ -9,6 +9,14 @@ Proof.
     inversion H.
 Qed.
 
+Lemma terminalAbortion :
+    terminal ↯.
+Proof.
+    intros.
+    intros [c' H].
+    inversion H.
+Qed.
+
 Goal forall l e σ,
 let s := Assign l e in
     (exists σ', properTerm s σ σ') \/
@@ -33,69 +41,110 @@ Goal forall σ,
 Proof.
     intros.
     eapply BigStepTrans;[constructor|apply BigStepEnd].
-    intros [c H];inversion H.
+    apply terminalAbortion.
 Qed.
 
 Import String.
 Open Scope string.
-
-Variable (S:Stmt).
-
-Definition wp := Block
-    [
-        While (Binary Ge (LVal (Var "a")%string) (LVal(Var "b")%string))
-        (* extra Block in Exercise *)
-                (Assign (Var "a")%string (Binary Sub (LVal (Var "a")%string) (LVal (Var "b")%string)))
-        ; S
-    ].
-
-    Print State.
-    Print VarEnv.
-    Print MemEnv.
-(* Definition △ := 0. *)
+    (* Definition does not work here *)
+Notation "△" := Triangle.
+Notation "○" := Circle.
 Instance eqString : EqDec string.
-constructor.
-repeat decide equality.
+    constructor.
+    repeat decide equality.
 Defined.
+Notation "f { x ↦ y }" := (update f x y) (at level 10).
+(* Definition update_swap x y f :=
+    update f x y.
+Notation "{ x1 ↦ y1 , x2 ↦ y2 , .. , xn ↦ yn }" := (update_swap x1 y1 (update x2 y2 .. (update xn yn (fun _ => None) ..)) : update_scope. (at level 10). *)
+
+Section Exercise6_9.
+
+    Definition W :=
+            While (Binary Ge (LVal (Var "a")) (LVal(Var "b")))
+            (* extra Block in Exercise *)
+                    (Assign (Var "a") (Binary Sub (LVal (Var "a")) (LVal (Var "b"))))
+            .
+
+    Definition S :=
+            If (Binary Eq (LVal (Var "a")) (Const (IntVal 8)))
+                Abort
+                (Assign (Var "b") (Const (IntVal 0))).
+
+    Definition wp := 
+        Block
+        [
+            W;
+            S
+        ].
 
 
-Definition ρ : VarEnv :=
-    update
-    (update (fun _ => None) "a" (Some 0))
-    "b" (Some 1)
-    . 
-Definition μ : MemEnv :=
-    update
-    (update (fun _ => None) 0 (Some (Defined 42)))
-    1 (Some (Defined 17))
-    . 
+    Definition ρ : VarEnv :=
+        (fun _ => None) { "a" ↦ (Some △)} { "b" ↦ (Some ○)}.
+    Definition μ : MemEnv :=
+        (fun _ => None) { △ ↦ (Some (Defined 42))} { ○ ↦ (Some (Defined 17))}.
 
 
-Definition σ := (ρ,μ).
+    Definition σ := (ρ,μ).
 
-Goal exists T, ⟨ wp | σ ⟩ ⇓ T.
-Proof.
-eexists.
-unfold wp.
-eapply BigStepTrans.
- 1: {
-    apply SubstStep.
-    apply WhileStep.
- }
-eapply BigStepTrans.
- 1: {
-    apply SubstStep.
-    apply IfTrueStep with (n:=1).
-    all:admit.
- }
-eapply BigStepTrans.
- 1: {
-    (* apply ExecStep. *)
-    apply SubstStep. (* Not Exec as exec is going to <s,sig> not Terminal *)
-    apply ExecStep.
-    (* apply AssignStep. *)
-    admit.
- }
-eapply BigStepTrans.
- 1: {
-    apply ExecStep.
+    Goal abortion wp σ.
+    Proof.
+    unfold abortion, wp, W.
+    do 13 try eapply BigStepTrans.
+    - apply SubstStep.
+        apply WhileStep.
+    - apply SubstStep.
+        apply IfTrueStep with (n:=1).
+        2: easy.
+        now vm_compute.
+    - Fail do 2 (apply ExecStep). 
+        (* Not Exec as exec is going to <s,sig> not Terminal *)
+        apply SubstStep. 
+        apply ExecStep.
+        apply AssignStep.
+        + now vm_compute.
+        + now vm_compute.
+
+        (* same as above *)
+    - do 2 apply SubstStep.
+      apply WhileStep.
+    - do 2 apply SubstStep.
+        apply IfTrueStep with (n:=1).
+        2: easy.
+        now vm_compute.
+    - do 2 apply SubstStep. 
+        apply ExecStep.
+        apply AssignStep.
+        + now vm_compute.
+        + now vm_compute.
+    
+    - do 3 apply SubstStep.
+      apply WhileStep.
+    - do 3 apply SubstStep.
+      apply IfFalseStep.
+      vm_compute.
+      reflexivity.
+
+    (* now close all blocks after the while *)
+    - do 2 apply SubstStep.
+      apply ExecStep.
+      apply EmptyStep.
+    - apply SubstStep.
+      apply ExecStep.
+      apply EmptyStep.
+    - apply ExecStep.
+      apply EmptyStep.
+
+    - unfold S.
+      apply SubstStep.
+      apply IfTrueStep with (n:=1).
+      2: easy.
+      now vm_compute.
+    - (* after 12 small steps *)
+      apply CrashStep.
+      apply AbortStep.
+    - apply BigStepEnd.
+      apply terminalAbortion.
+    Qed.
+
+End Exercise6_9.
