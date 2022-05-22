@@ -4,6 +4,7 @@ util.v
 
 syntax.v
 semantics.v
+hoare.v
 proofs.v
 
 

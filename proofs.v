@@ -1,4 +1,8 @@
+Require Import syntax.
 Require Import semantics.
+Require Import hoare.
+Require Import List.
+Import ListNotations.
 
 Lemma terminalTerminated :
     forall (σ:State),
@@ -61,21 +65,17 @@ Section Exercise6_9.
                 Abort
                 (Assign (Var "b") (Const (IntVal 0))).
 
-    Definition wp := 
-        Block
-        [
-            W;
-            S
-        ].
+    Definition wp : Stmt := 
+        (Block nil [W; S]).
 
 
     Definition ρ : VarEnv :=
-        (fun _ => None) { "a" ↦ (Some △)} { "b" ↦ (Some ○)}.
+        emptyEnv { "a" ↦ △} { "b" ↦ ○}.
     Definition μ : MemEnv :=
-        (fun _ => None) { △ ↦ (Some (Defined 42))} { ○ ↦ (Some (Defined 17))}.
+        emptyEnv { △ ↦ (Defined 42)} { ○ ↦ (Defined 17)}.
 
 
-    Definition σ := (ρ,μ).
+    Definition σ := ([ρ],μ).
 
     Goal abortion wp σ.
     Proof.

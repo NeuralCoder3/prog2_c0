@@ -243,7 +243,7 @@ Inductive bigStep : Conf -> Conf -> Prop :=
     where "conf1 ⇓ conf2" := (bigStep conf1 conf2).
 
 Definition properTerm s σ σ' :=
-    ⟨ s | σ ⟩ ⇓ σ'.
+    ⟨ s | σ ⟩ ⇓ « σ' ».
 Definition abortion s σ :=
     ⟨ s | σ ⟩ ⇓ ↯.
 Definition stuck s σ s' σ' :=
