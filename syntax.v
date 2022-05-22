@@ -5,9 +5,9 @@ Import ListNotations.
 
 Definition VarT := string.
 (* Definition Addr := nat. *)
-Variant Addr := Triangle | Circle | Pentagon | Square.
+Variant AddrT := Triangle | Circle | Pentagon | Square.
 Variant Val :=
-    | AddrVal (addr: Addr)
+    | AddrVal (addr: AddrT)
     | IntVal (v: nat).
 
 Variant Op := 
@@ -19,8 +19,12 @@ Inductive Expr :=
     | Const (c:Val)
     | Binary (o:Op) (e1 e2:Expr)
     | LVal (l:LExpr)
+    (* C0p *)
+    | Addr (l:LExpr)
 with LExpr :=
     | Var (v:VarT)
+    (* C0p *)
+    | Indir (e:Expr)
     .
 
 Implicit Type (e : Expr) (c : Val) (x y : VarT).
@@ -33,9 +37,15 @@ Inductive Stmt :=
     | Block (h:list Stmt)
     | Assign (x:LExpr) e
     | Abort
+    | GarbageCollect
     .
 
 Implicit Type (ss : list Stmt) (s:Stmt).
 
 
 
+Notation "△" := Triangle.
+Notation "○" := Circle.
+Notation "⬠" := Pentagon.
+Notation "□" := Square.
+Notation "■" := GarbageCollect.

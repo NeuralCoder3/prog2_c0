@@ -1,12 +1,12 @@
-Load syntax.
+Require Import syntax.
 
 Variant UndefVal :=
     | Undef
     | Defined (v:Val)
     .
 
-Notation VarEnv := (VarT -> option Addr).
-Notation MemEnv := (Addr -> option UndefVal).
+Notation VarEnv := (VarT -> option AddrT).
+Notation MemEnv := (AddrT -> option UndefVal).
 
 (* Record State :=
     {
@@ -24,11 +24,6 @@ Definition lookupVar σ x :=
     a <- ρ x;;
     μ a.
 
-Definition LExprEval (l:LExpr) (σ:State) : option Addr :=
-    let (ρ,μ) := σ in
-    match l with
-    | Var x => ρ x
-    end.
 Definition evalOp (op:Op) (v1 v2:Val) : option Val :=
     match op, v1,v2 with 
     | Add, IntVal i1, IntVal i2 => Some (IntVal (i1+i2))
@@ -38,12 +33,24 @@ Definition evalOp (op:Op) (v1 v2:Val) : option Val :=
     | Eq , IntVal i1, IntVal i2 => Some (IntVal (if Nat.eqb i1 i2 then 1 else 0))
     | _, _, _ => None
     end.
-Fixpoint ExprEval (e:Expr) (s:State) : option Val :=
+
+Fixpoint LExprEval (l:LExpr) (σ:State) : option AddrT :=
+    let (ρ,μ) := σ in
+    match l with
+    | Var x => ρ x
+    (* C0p *)
+    | Indir e => 
+        match RExprEval e σ with
+        | Some (AddrVal a) => Some a
+        | _ => None
+        end
+    end
+with RExprEval (e:Expr) (σ:State) : option Val :=
     match e with 
     | Const c => ret c
     | LVal l => 
-        let (ρ,μ) := s in
-        a <- LExprEval l s;;
+        let (ρ,μ) := σ in
+        a <- LExprEval l σ;;
         uv <- μ a;;
         match uv with 
         | Undef => None
@@ -51,9 +58,15 @@ Fixpoint ExprEval (e:Expr) (s:State) : option Val :=
             ret v
         end
     | Binary op e1 e2 =>
-        v1 <- ExprEval e1 s;;
-        v2 <- ExprEval e2 s;;
+        v1 <- RExprEval e1 σ;;
+        v2 <- RExprEval e2 σ;;
         evalOp op v1 v2
+    (* C0p *)
+    | Addr e => 
+        match LExprEval e σ with
+        | Some a => Some (AddrVal a)
+        | _ => None
+        end
     end
     .
 
@@ -71,11 +84,15 @@ Class EqDec (A:Type) :=
 Definition update {A B} {Aeq:EqDec A} (f:A -> B) (x:A) (y:B) (x2:A) : B :=
         if @eqdec A Aeq x x2 then y else f x2.
 
-Instance AddrEq : EqDec Addr.
+Instance AddrTEq : EqDec AddrT.
     constructor.
     now decide equality.
 Defined.
 
+Instance StringEq : EqDec string.
+    constructor.
+    repeat decide equality.
+Defined.
 
 Notation RExprEval := ExprEval.
 

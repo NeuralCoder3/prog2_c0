@@ -1,4 +1,4 @@
-Load semantics.
+Require Import semantics.
 
 Lemma terminalTerminated :
     forall (σ:State),
@@ -47,16 +47,7 @@ Qed.
 Import String.
 Open Scope string.
     (* Definition does not work here *)
-Notation "△" := Triangle.
-Notation "○" := Circle.
-Instance eqString : EqDec string.
-    constructor.
-    repeat decide equality.
-Defined.
 Notation "f { x ↦ y }" := (update f x y) (at level 10).
-(* Definition update_swap x y f :=
-    update f x y.
-Notation "{ x1 ↦ y1 , x2 ↦ y2 , .. , xn ↦ yn }" := (update_swap x1 y1 (update x2 y2 .. (update xn yn (fun _ => None) ..)) : update_scope. (at level 10). *)
 
 Section Exercise6_9.
 
