@@ -5,10 +5,11 @@ Import ListNotations.
 
 Definition VarT := string.
 (* Definition Addr := nat. *)
-Variant AddrT := Triangle | Circle | Pentagon | Square.
+Variant AddrT := Triangle | Circle | Pentagon | Square | NatAddr (n:nat).
 Variant Val :=
     | AddrVal (addr: AddrT)
     | IntVal (v: nat).
+
 
 Variant Op := 
     Add | Mul | Sub | Ge | Eq.
@@ -29,12 +30,19 @@ with LExpr :=
 
 Implicit Type (e : Expr) (c : Val) (x y : VarT).
 
+Inductive CType :=
+    | Int 
+    | Pointer (t:CType).
+
+Definition Declaration : Type := CType*VarT.
+
 Inductive Stmt :=
     (* | Assume e *)
     (* | Assert e *)
     | While e (s:Stmt)
     | If e (s_then s_else : Stmt)
-    | Block (h:list Stmt)
+    (* modified by C0b *)
+    | Block (decl:list Declaration) (h:list Stmt)
     | Assign (x:LExpr) e
     | Abort
     | GarbageCollect

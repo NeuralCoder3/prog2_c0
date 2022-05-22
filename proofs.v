@@ -47,7 +47,6 @@ Qed.
 Import String.
 Open Scope string.
     (* Definition does not work here *)
-Notation "f { x ↦ y }" := (update f x y) (at level 10).
 
 Section Exercise6_9.
 
