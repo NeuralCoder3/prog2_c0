@@ -132,7 +132,6 @@ Section Syntactic.
           now rewrite lookup_update;cbn.
         + destruct l,x;cbn in *;unfold ρmap, μmap in *;cbn in *.
           destruct (lookup _ v0) eqn: Hv;cbn;[|reflexivity].
-          (* rewrite lookup_not_update;[easy|].           *)
     (* does not hold if two vars have the same address *)
     Abort.
 
@@ -156,11 +155,7 @@ Section Syntactic.
         admit.
       - (* While *)
         intros σ HP c.
-        (* intros σ [σ2 [Hσσ2 HP]] c.
-        injection Hσσ2 as [=];
-        rewrite <- H0 in *;clear H0 σ2. *)
         intros HWhile.
-        (* depelim HWhile;try congruence. *)
         dependent induction HWhile;try congruence.
         + (* σ ⊨ e *)
           eapply IHHWhile2.
