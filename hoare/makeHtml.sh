@@ -4,7 +4,7 @@ rm -f html/*.*
 
 # alectryon -R . Lib -I . --frontend coq proofs.v
 # alectryon -R . Lib -I . --frontend coq --backend webpage proofs.v -o html/proofs.html
-alectryon -R . Lib -I . --frontend coq --backend webpage *.v
+alectryon -R . Prog2Hoare -I . --frontend coq --backend webpage *.v
 mv *.html html/
 mv *.js html/
 mv *.css html/

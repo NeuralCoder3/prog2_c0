@@ -28,6 +28,10 @@ Proof.
 Qed.
 
 
+From Equations Require Import Equations.
+(* for easier dep induction *)
+Require Import Coq.Program.Equality.
+
 Section Syntactic.
 
     Definition Property := Expr.
@@ -84,8 +88,6 @@ Section Syntactic.
     Ltac inv_subst H :=
         inversion H;subst;clear H.
 
-    From Equations Require Import Equations.
-    Require Import Coq.Program.Equality.
     Derive Signature for properBigStep.
     Derive Signature for hoare.
 
