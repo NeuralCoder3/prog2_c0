@@ -168,3 +168,79 @@ Definition abortion s σ :=
     ⟨ s | σ ⟩ ⇓ ↯.
 Definition stuck s σ s' σ' :=
     ⟨ s | σ ⟩ ⇓ ⟨ s' | σ' ⟩.
+
+Definition interpret P σ :=
+    exists n, RExprEval P σ = Some (IntVal n) /\ n<>0.
+Notation "σ ⊨ P" := (interpret P σ) (at level 70).
+
+Lemma interpret_neg : forall P σ,
+    σ ⊨ (Unary Not P) <->
+    RExprEval P σ = Some (IntVal 0).
+Proof.
+    intros. split.
+    - intros [n [Hv Hn]].
+      cbn in Hv.
+      destruct (RExprEval P σ) as [[|[]]|];cbn in *;congruence.
+    - intros H. exists 1.
+      cbn; rewrite H;cbn.
+      firstorder.
+Qed.
+
+Definition isProperTermBool c :=
+    match c with
+    | Terminated _ => true
+    | _ => false
+    end.
+Definition isProperTerm c := exists σ, c = Terminated σ.
+
+Reserved Notation "⟨ s | σ ⟩ ⇓B conf2" (at level 50).
+Inductive properBigStep : Stmt -> State -> Conf -> Prop :=
+    | BigStepAssume e σ :
+        ⟨Assume e | σ⟩ ⇓B « σ »
+    | BigStepAssert e σ :
+        ⟨Assert e | σ⟩ ⇓B « σ »
+    | BigStepBlock (s:Stmt) (sr:list Stmt) σ σ' c:
+        ⟨s | σ⟩ ⇓B « σ' » ->
+        ⟨Block sr | σ'⟩ ⇓B c ->
+        ⟨Block (s::sr) | σ⟩ ⇓B c
+    | BigStepEmptyBlock σ :
+        ⟨Block [] | σ⟩ ⇓B « σ »
+    | BigStepAssign l e ρ μ a v:
+        let σ := (ρ, μ) in
+        R⟦e⟧σ = Some v ->
+        L⟦l⟧σ = Some a ->
+        ⟨Assign l e | σ⟩ ⇓B «(ρ, update μ a (Defined v))»
+    | BigStepIfTrue e s1 s2 σ (n:nat) c:
+        σ ⊨ e ->
+        ⟨s1 | σ⟩ ⇓B c ->
+        ⟨If e s1 s2 | σ⟩ ⇓B c
+    | BigStepIfFalse e s1 s2 σ c:
+        σ ⊨ (Unary Not e) ->
+        ⟨s2 | σ⟩ ⇓B c ->
+        ⟨If e s1 s2 | σ⟩ ⇓B c
+    | BigStepWhileTrue e s σ σ' c:
+        σ ⊨ e ->
+        ⟨s | σ⟩ ⇓B « σ' » ->
+        ⟨While e s | σ'⟩ ⇓B c ->
+        ⟨While e s | σ⟩ ⇓B c
+    | BigStepWhileFalse e s σ:
+        σ ⊨ (Unary Not e) ->
+        ⟨While e s | σ⟩ ⇓B « σ »
+        (* unusual *)
+    | BigStepAbort σ :
+        ⟨Abort | σ⟩ ⇓B ↯
+    | BigStepCrashBlock s sr σ c:
+        ~ isProperTerm c ->
+        ⟨s | σ⟩ ⇓B c ->
+        ⟨Block (s::sr) | σ⟩ ⇓B c
+    | BigStepCrashWhile e s σ c:
+        σ ⊨ e ->
+        ~ isProperTerm c ->
+        ⟨s | σ⟩ ⇓B c ->
+        ⟨While e s | σ⟩ ⇓B c
+    where "⟨ s | σ ⟩ ⇓B conf2" := (properBigStep s σ conf2).
+
+
+Definition confInterpret (c:Conf) P :=
+    exists σ, c = Terminated σ /\ σ ⊨ P.
+Notation "c '⊨c' P" := (confInterpret c P) (at level 70).

@@ -28,10 +28,6 @@ Proof.
 Qed.
 
 
-
-
-
-
 Section Syntactic.
 
     Definition Property := Expr.
@@ -40,16 +36,13 @@ Section Syntactic.
 
     Fixpoint replace P e x {struct P} :=
         match P with
-        | Binary o e1 e2 => Binary o (replace e1 e x) (replace e2 P x)
+        | Binary o e1 e2 => Binary o (replace e1 e x) (replace e2 e x)
+        | Unary o e1 => Unary o (replace e1 e x)
         | LVal l => if eqdec l x then e else P
-        | _ => P
+        | Const v => P
         end.
 
-    Definition interpret P σ :=
-        exists n, RExprEval P σ = Some (IntVal n) /\ n<>0.
-    Notation "P ⟦ σ ⟧ " := (interpret P σ) (at level 70).
-    Notation "P ⇒ Q" := (forall σ, P⟦σ⟧ -> Q⟦σ⟧) (at level 60).
-    (* Notation "P ⟦ E ⌿ x ⟧" := (replace P E x) (at level 50). *)
+    Notation "P ⇒ Q" := (forall σ, σ ⊨ P -> σ ⊨ Q) (at level 60).
 
     Reserved Notation "{{ P }} s {{ Q }}" (at level 50).
     Inductive hoare : Property -> Stmt -> Property -> Prop :=
@@ -79,215 +72,142 @@ Section Syntactic.
         | hoareAssume P e:
             {{P}} (Assume e) {{Binary And P e}}
         where "{{ P }} s {{ Q }}" := (hoare P s Q).
+    Notation "⊢ {{ P }} s {{ Q }}" := (hoare P s Q) (at level 50).
+    Definition partial_correctness P s Q :=
+        forall (σ:State),
+        σ ⊨ P ->
+        forall (c:Conf),
+        ⟨ s | σ ⟩ ⇓B c ->
+        c ⊨c Q.
+    Notation "⊨ {{ P }} s {{ Q }}" := (partial_correctness P s Q) (at level 50).
 
     Ltac inv_subst H :=
         inversion H;subst;clear H.
 
-    Lemma bigstep_terminal_inv σ σ':
-    « σ » ⇓ « σ' » -> σ = σ'.
-    Proof.
-        intros H.
-        inv_subst H.
-        - reflexivity.
-        - inversion H0.
-    Qed.
-
-    Lemma And_split P Q σ:
-        P ⟦ σ ⟧ ->
-        Q ⟦ σ ⟧ ->
-        Binary And P Q ⟦ σ ⟧.
-    Proof.
-        intros [n [HP Hn]] [m [HQ Hm]].
-        exists m;split;[|assumption];cbn.
-        rewrite HP, HQ;cbn.
-        destruct n;congruence.
-    Qed.
-
-    Scheme dep_elim_hoare := Induction for hoare Sort Prop.
-    Scheme dep_elim_bigStep := Induction for bigStep Sort Prop.
-
     From Equations Require Import Equations.
-    Derive Signature for bigStep.
-    Derive Signature for step.
+    Require Import Coq.Program.Equality.
+    Derive Signature for properBigStep.
+    Derive Signature for hoare.
 
-    Lemma abort_not_terminate σ:
-        ~ ↯ ⇓ « σ ».
+
+    (* Lemma smallstep_bigstep_equiv s σ c:
+        (bigStep ⟨s|σ⟩ c) ->
+        (⟨s|σ⟩ ⇓B c).
+    Abort. *)
+
+    Lemma lookup_update {A B H} (μ:Env A B) a v:
+      @lookup A B H (μ {a ↦ v}) a = Some v.
     Proof.
-        intros H.
-        inv_subst H.
-        inversion H0.
+      unfold lookup, update.
+      cbn. unfold eqb. destruct eqdec;auto;congruence.
     Qed.
 
-    Derive NoConfusion for Conf.
-    Derive NoConfusion for Stmt.
-
-    (* define alternative bigstep semantic for easier proofs *)
-
-    Lemma diverge_not_terminate σ σ':
-        ~ ⟨ diverge | σ ⟩ ⇓ « σ' ».
+    Lemma lookup_not_update {A B H} (μ:Env A B) a b v:
+      a <> b ->
+      @lookup A B H (μ {b ↦ v}) a = @lookup A B H (μ) a.
     Proof.
-    (* needs dep elim *)
-    Admitted.
-
-    Lemma bigstep_block_inv s B σ σ'':
-     ⟨ Block (s::B) | σ ⟩ ⇓ « σ'' » ->
-     exists σ', ⟨ s | σ ⟩ ⇓ « σ' » /\ 
-        ⟨ Block B | σ' ⟩ ⇓ « σ'' ».
-    Proof.
-        intros H.
-        inv_subst H.
-        inv_subst H0. (* needs dep_elim *)
-        - exists σ';split.
-          + econstructor.
-            eassumption.
-            constructor.
-            apply terminalTerminated.
-          + assumption.
-        - (* needs dep_elim *)
-          admit.
-        - apply abort_not_terminate in H1.
-          contradict H1.
-    Admitted.
-
-    Lemma Not_expr e σ:
-        R⟦ e ⟧ σ = Some (IntVal 0) ->
-        Unary Not e ⟦ σ ⟧.
-    Proof.
-        intros H.
-        exists 1;split;[|auto].
-        cbn.
-        rewrite H.
-        cbn. reflexivity.
+      intros Heq.
+      unfold lookup, update.
+      cbn. unfold eqb. destruct eqdec;congruence.
     Qed.
 
-
-    Lemma partial_correctness P Q s:
-        hoare P s Q ->
-        forall σ, (P⟦σ⟧) ->
-        forall σ', ⟨ s | σ ⟩ ⇓ « σ' » ->
-        (Q⟦σ'⟧).
+    Lemma replace_subst P e x ρ μ a v:
+    let σ := (ρ, μ) in
+      L⟦ x ⟧ σ = Some a ->
+      R⟦ e ⟧ σ = Some v ->
+      R⟦ replace P e x ⟧ σ = 
+      R⟦ P ⟧ (ρ, μ {a ↦ v}).
     Proof.
-        induction 1;intros σ HP σ' HTerm.
-        - enough (Q' ⟦ σ' ⟧).
+    cbn.
+      intros Hx He.
+      induction P.
+      1-3: cbn.
+      - reflexivity. (* Const *)
+      - now rewrite <- IHP1, <- IHP2. (* Binary *)
+      - now rewrite <- IHP. (* Unary *)
+      - cbn [replace].
+        destruct (eqdec l x) as [-> | Hxl].
+        + destruct x;cbn in *;unfold ρmap, μmap in *;cbn in *.
+          rewrite He, Hx;cbn.
+          now rewrite lookup_update;cbn.
+        + destruct l,x;cbn in *;unfold ρmap, μmap in *;cbn in *.
+          destruct (lookup _ v0) eqn: Hv;cbn;[|reflexivity].
+          (* rewrite lookup_not_update;[easy|].           *)
+    (* does not hold if two vars have the same address *)
+    Abort.
+
+    Lemma soundness P s Q:
+        ⊢ {{ P }} s {{ Q }} ->
+        ⊨ {{ P }} s {{ Q }}.
+    Proof.
+      intros H.
+      induction H.
+      - (* Consequence *)
+        intros σ HP c Hterm.
+        assert (σ ⊨ P') as HP' by now apply H.
+        destruct (IHhoare _ HP' c Hterm) as [σ' [-> HQ']].
+        now exists σ';split;auto.
+      - (* Assign *)
+        intros σ HP c Hterm.
+        depelim Hterm;try congruence.
+        eexists;split;[reflexivity|].
+        destruct HP as [np [Hp Hnp]].
+        exists np;split;[|assumption].
+        admit.
+      - (* While *)
+        intros σ HP c.
+        (* intros σ [σ2 [Hσσ2 HP]] c.
+        injection Hσσ2 as [=];
+        rewrite <- H0 in *;clear H0 σ2. *)
+        intros HWhile.
+        (* depelim HWhile;try congruence. *)
+        dependent induction HWhile;try congruence.
+        + (* σ ⊨ e *)
+          eapply IHHWhile2.
+          all: try eauto.
+          assert( σ ⊨ Binary And P e) as HPe. 
           {
-            now apply H0.
+            destruct HP as [np [Hp Hnp]];
+            destruct H0 as [ne [He Hne]];cbn.
+            exists (if match np with
+            | 0 => true
+            | S _ => false
+            end then 0 else ne);cbn;
+            rewrite Hp, He;cbn;split;auto.
+            destruct np, ne;congruence.
           }
-          eapply IHhoare.
-          1: apply (H σ HP).
-          apply HTerm.
-        - inv_subst HTerm.
-          inv_subst H. subst σ0.
-          apply bigstep_terminal_inv in H0 as <-.
-          unfold interpret in *.
-          induction P;destruct HP as [n [He Hn]].
-          + exists n. now split.
-          + admit.
-          + admit.
-          + unfold replace in He.
-            destruct (eqdec l x) as [<-|].
-            * assert(v=IntVal n) as ->.
-              {
-                enough (Some v = Some (IntVal n)) by now inv_subst H.
-                rewrite <- H5, <- He.
-                induction e;admit.
-              }
-              exists n.
-              split.
-              2: assumption.
-              cbn.
-              assert(L⟦l⟧ (ρ,μ {a↦n}) = L⟦l⟧ (ρ,μ)) as -> by admit.
-              rewrite H6.
-              unfold μmap.
-              cbn.
-              assert(lookup (μ {a ↦ n}) a = Some (Defined (IntVal n))) as -> by admit.
-              reflexivity.
-            * exists n.
-              cbn in He.
-              assert(exists b, L⟦ l ⟧ (ρ,μ) = Some b) as [b Hb].
-              {
-                destruct (L⟦ l ⟧ (ρ,μ)).
-                - now exists a0.
-                - inversion He.
-              }
-              cbn.
-              admit.
-              (* assert(L⟦l⟧ (ρ,μ {a↦v}) = L⟦l⟧ (ρ,μ)) as -> by admit.
-              rewrite Hb.
-              unfold μmap.
-              cbn.
-              assert(lookup (μ {a ↦ n}) a = Some (Defined (IntVal n))) as -> by admit. *)
-        - inv_subst HTerm.
-          inv_subst H0.
-          inv_subst H1.
-          inv_subst H0.
-          + apply bigstep_block_inv in H2 as [σ'' [Hs HB]].
-            apply And_split.
-            * admit. (* needs dep elim *)
-            * admit. (* after while false *)
-          + inv_subst H2.
-            inv_subst H0.
-            apply bigstep_terminal_inv in H1 as <-.
-            apply And_split.
-            * assumption.
-            * now apply Not_expr.
-        - inv_subst HTerm.
-          inv_subst H1.
-          + eapply IHhoare1.
-            2: eassumption.
-            apply And_split.
-            * assumption.
-            * exists n;split;auto.
-          + eapply IHhoare2.
-            2: eassumption.
-            apply And_split.
-            * assumption.
-            * now apply Not_expr.
-        - inv_subst HTerm.
-          inv_subst H.
-          apply bigstep_terminal_inv in H0 as <-.
+          specialize (IHhoare _ HPe _ HWhile1).
+          destruct IHhoare as [? [[= <-] ?]].
           assumption.
-        - apply bigstep_block_inv in HTerm as [σ'' [Hs HB]].
-          eapply IHhoare2.
-          2: eassumption.
-          eapply IHhoare1.
-          1: apply HP.
-          assumption.
-        - inv_subst HTerm.
-          inv_subst H0.
-          inv_subst H1.
-          inv_subst H0.
-          + inv_subst H2.
-            inv_subst H0.
-            apply bigstep_terminal_inv in H1 as <-.
-            assumption.
-          + inv_subst H2.
-            inv_subst H0.
-            inv_subst H1.
-            inversion H0.
-        - inv_subst HTerm.
-          inv_subst H.
-          inv_subst H0.
-          inv_subst H.
-          + inv_subst H1.
-            inv_subst H.
-            apply bigstep_terminal_inv in H0 as <-.
-            apply And_split.
-            * assumption.
-            * exists n;split;assumption.
-          + apply diverge_not_terminate in H1.
-            contradict H1.
-    Qed.
+        + (* σ ⊨ ~e *)
+          exists σ;split;[reflexivity|];exists 1;split;[|auto];cbn.
+          destruct HP as [np [-> Hnp]];cbn.
+          destruct H0 as [ne [He Hne]];cbn.
+          cbn in He.
+          destruct (R⟦ e ⟧ σ) as [[|[]]|];cbn in *.
+          all: try congruence.
+          destruct np;tauto.
+        + (* σ ⊨ e, s,σ ⇓ not_proper *)
+          destruct c;cbn in *.
+          2: contradict H0; now exists s0.
+          (* specialize Hoare IH like above *)
+          1-2: assert( σ ⊨ Binary And P e) as HPe by
+            ( destruct HP as [np [Hp Hnp]];
+            destruct H1 as [ne [He Hne]];cbn;
+            exists (if match np with
+            | 0 => true
+            | S _ => false
+            end then 0 else ne);cbn;
+            rewrite Hp, He;cbn;split;auto;
+            destruct np, ne;congruence);
+          specialize (IHhoare _ HPe _ HWhile);
+          now destruct IHhoare as [? [[= <-] ?]].
+      - admit. (* If *)
+      - admit. (* Skip *)
+      - admit. (* Block *)
+      - admit. (* Assert *)
+      - admit. (* Assume *)
+    Admitted.
 
-
-
-
-    (* while with termination proof *)
-    (* Lemma total_correctness P Q s σ:
-        hoare P s Q ->
-        P σ ->
-        exists σ',
-        ⟨ s | σ ⟩ ⇓ « σ' » /\
-        Q σ'.
-    Proof. *)
 
 End Syntactic.
