@@ -113,6 +113,14 @@ Section Syntactic.
       cbn. unfold eqb. destruct eqdec;congruence.
     Qed.
 
+    (* should be formulated using fresh_var instead *)
+    Variable (H_fresh_vars: forall (ρ:VarEnv) (x y:VarT) (a_x a_y:AddrT),
+        x <> y ->
+        lookup ρ x = Some a_x ->
+        lookup ρ y = Some a_y ->
+        a_x <> a_y
+    ).
+
     Lemma replace_subst P e x ρ μ a v:
     let σ := (ρ, μ) in
       L⟦ x ⟧ σ = Some a ->
@@ -134,8 +142,10 @@ Section Syntactic.
           now rewrite lookup_update;cbn.
         + destruct l,x;cbn in *;unfold ρmap, μmap in *;cbn in *.
           destruct (lookup _ v0) eqn: Hv;cbn;[|reflexivity].
-    (* does not hold if two vars have the same address *)
-    Abort.
+          rewrite lookup_not_update.
+          2: eapply H_fresh_vars;try eassumption;contradict Hxl;now subst.
+          reflexivity.
+    Qed.
 
     Lemma soundness P s Q:
         ⊢ {{ P }} s {{ Q }} ->
@@ -154,7 +164,7 @@ Section Syntactic.
         eexists;split;[reflexivity|].
         destruct HP as [np [Hp Hnp]].
         exists np;split;[|assumption].
-        admit.
+        now erewrite <- replace_subst;eassumption.
       - (* While *)
         intros σ HP c.
         intros HWhile.
