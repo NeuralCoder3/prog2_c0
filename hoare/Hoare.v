@@ -147,43 +147,51 @@ Section Syntactic.
           reflexivity.
     Qed.
 
+    Lemma interp_and {σ a b}:
+      σ ⊨ a ->
+      σ ⊨ b ->
+      σ ⊨ Binary And a b.
+    Proof.
+      intros [na [Ha Hna]] [nb [Hb Hnb]].
+      exists (if match na with
+            | 0 => true
+            | S _ => false
+            end then 0 else nb);cbn.
+      rewrite Ha, Hb;cbn;split;auto.
+      now destruct na, nb;auto.
+    Qed.
+
+    Lemma interp_interp_conf σ P:
+      σ ⊨ P ->
+      « σ » ⊨c P.
+    Proof.
+      intros H.
+      now eexists.
+    Qed.
+
     Lemma soundness P s Q:
         ⊢ {{ P }} s {{ Q }} ->
         ⊨ {{ P }} s {{ Q }}.
     Proof.
       intros H.
-      induction H.
+      induction H; intros σ HP c Hterm.
       - (* Consequence *)
-        intros σ HP c Hterm.
         assert (σ ⊨ P') as HP' by now apply H.
         destruct (IHhoare _ HP' c Hterm) as [σ' [-> HQ']].
-        now exists σ';split;auto.
+        apply interp_interp_conf;auto.
       - (* Assign *)
-        intros σ HP c Hterm.
         depelim Hterm;try congruence.
         eexists;split;[reflexivity|].
         destruct HP as [np [Hp Hnp]].
         exists np;split;[|assumption].
         now erewrite <- replace_subst;eassumption.
       - (* While *)
-        intros σ HP c.
-        intros HWhile.
+        rename Hterm into HWhile.
         dependent induction HWhile;try congruence.
         + (* σ ⊨ e *)
           eapply IHHWhile2.
           all: try eauto.
-          assert( σ ⊨ Binary And P e) as HPe. 
-          {
-            destruct HP as [np [Hp Hnp]];
-            destruct H0 as [ne [He Hne]];cbn.
-            exists (if match np with
-            | 0 => true
-            | S _ => false
-            end then 0 else ne);cbn;
-            rewrite Hp, He;cbn;split;auto.
-            destruct np, ne;congruence.
-          }
-          specialize (IHhoare _ HPe _ HWhile1).
+          specialize (IHhoare _ (interp_and HP H0) _ HWhile1).
           destruct IHhoare as [? [[= <-] ?]].
           assumption.
         + (* σ ⊨ ~e *)
@@ -198,23 +206,31 @@ Section Syntactic.
           destruct c;cbn in *.
           2: contradict H0; now exists s0.
           (* specialize Hoare IH like above *)
-          1-2: assert( σ ⊨ Binary And P e) as HPe by
-            ( destruct HP as [np [Hp Hnp]];
-            destruct H1 as [ne [He Hne]];cbn;
-            exists (if match np with
-            | 0 => true
-            | S _ => false
-            end then 0 else ne);cbn;
-            rewrite Hp, He;cbn;split;auto;
-            destruct np, ne;congruence);
-          specialize (IHhoare _ HPe _ HWhile);
+          1-2: specialize (IHhoare _ (interp_and HP H1) _ HWhile);
           now destruct IHhoare as [? [[= <-] ?]].
-      - admit. (* If *)
-      - admit. (* Skip *)
-      - admit. (* Block *)
-      - admit. (* Assert *)
-      - admit. (* Assume *)
-    Admitted.
+      - (* If *)
+        depelim Hterm.
+        + eapply IHhoare1;[|eassumption].
+          now apply interp_and.
+        + eapply IHhoare2;[|eassumption].
+          now apply interp_and.
+      - (* Skip *)
+        depelim Hterm. now apply interp_interp_conf.
+      - (* Block *)
+        depelim Hterm.
+        + eapply IHhoare2;[|eassumption].
+          enough (« σ' » ⊨c Q) by
+            now destruct H1 as [? [[= ->] HQ]].
+          eapply IHhoare1;eassumption.
+        + exfalso.
+          specialize (IHhoare1 _ HP _ Hterm).
+          destruct c;cbn in *;firstorder.
+      - (* Assert *)
+        depelim Hterm. now apply interp_interp_conf.
+      - (* Assume *)
+        depelim Hterm. 
+        now apply interp_interp_conf, interp_and.
+    Qed.
 
 
 End Syntactic.

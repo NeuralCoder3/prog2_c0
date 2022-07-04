@@ -196,6 +196,7 @@ Definition isProperTerm c := exists σ, c = Terminated σ.
 Reserved Notation "⟨ s | σ ⟩ ⇓B conf2" (at level 50).
 Inductive properBigStep : Stmt -> State -> Conf -> Prop :=
     | BigStepAssume e σ :
+        σ ⊨ e ->
         ⟨Assume e | σ⟩ ⇓B « σ »
     | BigStepAssert e σ :
         ⟨Assert e | σ⟩ ⇓B « σ »
